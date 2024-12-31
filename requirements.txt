@@ -1,0 +1,8 @@
+flask
+praw
+nltk
+requests
+anthropic
+beautifulsoup4
+fake-useragent
+gunicorn
