@@ -130,11 +130,8 @@ EXCLUSION_WORDS = {
 
 app = Flask(__name__)
 
-# Download required NLTK data
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
+# Set NLTK data path
+nltk.data.path.append('/app/nltk_data')
 
 # Print credentials check
 logger.info("Checking credentials...")
@@ -505,12 +502,13 @@ def scan_post(url, upvote_threshold=5, top_level_only=False):
         submission.comments.replace_more(limit=None)
 
         # Get comments based on user preference
+        submission.comments.replace_more(limit=2)  # Reduce from None to 2
         if top_level_only:
-            comments = submission.comments._comments
-            logger.info(f"Found {len(comments)} top-level comments")
+            comments = submission.comments._comments[:75]  # Limit to 50 comments
+            logger.info(f"Processing up to 20 top-level comments")
         else:
-            comments = submission.comments.list()
-            logger.info(f"Found {len(comments)} total comments")
+            comments = submission.comments.list()[:75]  # Limit to 50 total comments
+            logger.info(f"Processing up to 50 total comments")
 
         # Process comments
         filtered_comments = [comment for comment in comments if hasattr(comment, 'score') and comment.score >= upvote_threshold]
@@ -585,6 +583,7 @@ def scan_post(url, upvote_threshold=5, top_level_only=False):
         logger.error(f"Error type: {type(e)}")
         return f"Error: {e}"
 
+# In main.py, modify the Flask route:
 @app.route('/', methods=['GET', 'POST'])
 def home():
     results = None
@@ -593,14 +592,35 @@ def home():
         threshold = request.form.get('threshold')
         top_level_only = request.form.get('top_level_only') == 'true'
 
-        # Convert threshold to integer, default to 5 if not provided or invalid
         try:
-            threshold = int(threshold) if threshold else 5
-        except ValueError:
-            threshold = 5
+            # Add timeout handling
+            from werkzeug.serving import is_running_from_reloader
+            if not is_running_from_reloader():
+                logger.info("Starting request with timeout...")
+                import signal
 
-        logger.info(f"\nReceived URL: {url} with upvote threshold: {threshold}, top_level_only: {top_level_only}")
-        results = scan_post(url, threshold, top_level_only)
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Request took too long to process")
+
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(25)  # Set 25-second timeout
+
+            results = scan_post(url, threshold, top_level_only)
+
+            if not is_running_from_reloader():
+                signal.alarm(0)  # Disable alarm
+
+        except TimeoutError:
+            logger.error("Request timed out")
+            return render_template('index.html', 
+                                error="Request timed out. Please try again with fewer comments or top-level comments only.",
+                                google_maps_api_key=os.environ['GOOGLE_MAPS_API_KEY'])
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return render_template('index.html',
+                                error=f"Error processing request: {str(e)}",
+                                google_maps_api_key=os.environ['GOOGLE_MAPS_API_KEY'])
+
     return render_template('index.html', 
                          results=results, 
                          google_maps_api_key=os.environ['GOOGLE_MAPS_API_KEY'])

@@ -4,7 +4,7 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-      python -c "import nltk; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger'); nltk.download('maxent_ne_chunker'); nltk.download('words')"
+      python -m nltk.downloader -d /app/nltk_data punkt averaged_perceptron_tagger maxent_ne_chunker words
     startCommand: gunicorn wsgi:app
     envVars:
       - key: REDDIT_CLIENT_ID
