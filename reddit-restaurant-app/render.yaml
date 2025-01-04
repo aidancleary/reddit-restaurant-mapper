@@ -1,15 +1,17 @@
 services:
-- type: web
-  name: reddit-restaurant-mapper
-  env: python
-  buildCommand: pip install -r requirements.txt
-  startCommand: gunicorn main:app
-  envVars:
-    - key: REDDIT_CLIENT_ID
-      sync: false
-    - key: REDDIT_CLIENT_SECRET
-      sync: false
-    - key: GOOGLE_MAPS_API_KEY
-      sync: false
-    - key: ANTHROPIC_API_KEY
-      sync: false
+  - type: web
+    name: reddit-restaurant-mapper
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python -c "import nltk; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger'); nltk.download('maxent_ne_chunker'); nltk.download('words')"
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
