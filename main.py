@@ -511,7 +511,14 @@ def scan_post(url, upvote_threshold=5, top_level_only=False):
             logger.info(f"Processing up to 50 total comments")
 
         # Process comments
-        filtered_comments = [comment for comment in comments if hasattr(comment, 'score') and comment.score >= upvote_threshold]
+        try:
+            # Convert threshold to int to ensure proper comparison
+            threshold_int = int(upvote_threshold)
+            filtered_comments = [comment for comment in comments if hasattr(comment, 'score') and                             isinstance(comment.score, (int, float)) and comment.score >= threshold_int]
+            logger.info(f"Filtered down to {len(filtered_comments)} comments with {threshold_int}+ upvotes")
+        except ValueError as e:
+            logger.error(f"Error converting threshold to integer: {str(e)}")
+            filtered_comments = comments  # Use all comments if threshold is invalid
         logger.info(f"Filtered down to {len(filtered_comments)} comments with {upvote_threshold}+ upvotes")
 
         # Create a dictionary to track restaurant metrics
